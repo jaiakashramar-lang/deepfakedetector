@@ -157,3 +157,76 @@ CREATE TABLE flagged_content (
 CREATE INDEX idx_messages_timestamp ON messages(timestamp);
 CREATE INDEX idx_detection_logs_message ON detection_logs(message_id);
 CREATE INDEX idx_users_credibility ON users(credibility_score);
+
+
+deepfake-detection-system/
+│
+├── backend-python/                    # FastAPI Detection Service
+│   ├── main.py                        # FastAPI application
+│   ├── models/
+│   │   ├── audio_model.py             # Wav2Vec2 + ASVspoof loader
+│   │   ├── video_model.py             # FakeAVCeleb loader
+│   │   └── ensemble.py                # Ensemble voting
+│   ├── database/
+│   │   └── postgres_client.py         # PostgreSQL connection
+│   ├── utils/
+│   │   ├── audio_processor.py         # Audio preprocessing
+│   │   ├── video_processor.py         # Frame extraction
+│   │   └── feature_extractor.py       # Feature extraction
+│   ├── requirements.txt
+│   └── Dockerfile
+│
+├── backend-nodejs/                    # Node.js Chat Server
+│   ├── server.js                      # Main chat server
+│   ├── models/
+│   │   ├── User.js                    # User model (Sequelize)
+│   │   ├── Message.js                 # Message model
+│   │   └── DetectionLog.js            # Detection log model
+│   ├── controllers/
+│   │   ├── authController.js
+│   │   ├── messageController.js
+│   │   └── detectionController.js
+│   ├── middleware/
+│   │   ├── auth.js
+│   │   └── upload.js
+│   ├── routes/
+│   │   ├── auth.js
+│   │   ├── messages.js
+│   │   └── detection.js
+│   ├── config/
+│   │   ├── database.js                # PostgreSQL config
+│   │   └── socket.js                  # Socket.io config
+│   ├── package.json
+│   └── Dockerfile
+│
+├── frontend-react/                    # React.js Messenger
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── Chat/
+│   │   │   │   ├── ChatWindow.jsx
+│   │   │   │   ├── MessageBubble.jsx
+│   │   │   │   ├── AudioRecorder.jsx
+│   │   │   │   └── VideoRecorder.jsx
+│   │   │   ├── Detection/
+│   │   │   │   ├── DeepfakeAlert.jsx
+│   │   │   │   └── CredibilityScore.jsx
+│   │   │   └── Auth/
+│   │   │       ├── Login.jsx
+│   │   │       └── Register.jsx
+│   │   ├── services/
+│   │   │   ├── api.js                 # API calls
+│   │   │   └── socket.js              # Socket connection
+│   │   ├── App.js
+│   │   └── index.js
+│   ├── package.json
+│   └── Dockerfile
+│
+├── models/                            # Trained Model Files
+│   ├── wav2vec2_finetuned.pth
+│   ├── asvspoof_model.pth
+│   ├── fakeavceleb_model.pth
+│   └── ensemble_model.pkl
+│
+├── docker-compose.yml                 # Docker composition
+├── .env.example                       # Environment variables
+└── README.md                          # This file
