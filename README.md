@@ -10,223 +10,58 @@
 
 ---
 
-## 📋 Table of Contents
-1. [Overview](#overview)
-2. [System Architecture](#system-architecture)
-3. [Features](#features)
-4. [Tech Stack](#tech-stack)
-5. [Database Schema](#database-schema)
-6. [Project Structure](#project-structure)
-7. [Installation](#installation)
-8. [Model Details](#model-details)
-9. [API Endpoints](#api-endpoints)
-10. [Usage](#usage)
-11. [Performance Metrics](#performance-metrics)
-12. [Future Enhancements](#future-enhancements)
+## 📖 Explanation
 
----
+### What is this project?
+This system detects fake audio and video content (deepfakes) shared in messaging apps. When a user sends a voice note or video message, the system automatically analyzes it using deep learning models to check if it's real or AI-generated.
 
-## 🔍 Overview
+### How it works?
 
-This project presents an end-to-end **Audio-Visual Deepfake Detection System** integrated into a real-time messaging environment. When users share voice notes or video messages, the system automatically analyzes them using state-of-the-art deep learning models (Wav2Vec2, ASVspoof, FakeAVCeleb) to detect manipulated content. All data is persistently stored in PostgreSQL for audit trails and credibility scoring.
+**1. User sends a message**
+- User records voice note or video in React.js messenger
+- Message sent to Node.js chat server via WebSocket
 
-### Problem Statement
-Deepfakes pose significant threats to digital communication integrity. This system helps messaging platforms identify and flag synthetic audio and video content before it can be used for misinformation, fraud, or identity theft.
+**2. Automatic deepfake detection**
+- Chat server forwards media to FastAPI detection API
+- Python backend runs three deep learning models:
+  - **Wav2Vec2 + ASVspoof** - Analyzes audio for synthetic patterns
+  - **FakeAVCeleb** - Checks if lip movements match audio
+  - **Ensemble** - Combines all results for final verdict
 
----
+**3. Results shown to users**
+- Real content → Delivered normally
+- Deepfake detected → Warning shown to receiver
+- User credibility score decreases in PostgreSQL
 
-## 🏗️ System Architecture
+### Technology Stack
 
----
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| Frontend | React.js | Messenger UI with audio/video recording |
+| Chat Server | Node.js + Socket.io | Real-time message handling |
+| Detection API | Python FastAPI | Deepfake detection models |
+| Database | PostgreSQL | Store users, messages, detection logs |
+| ML Models | Wav2Vec2, ASVspoof, FakeAVCeleb | Audio and video deepfake detection |
 
-## ✨ Features
+### Database Storage (PostgreSQL)
 
-### Core Functionality
-- ✅ **Real-time Audio Deepfake Detection** - Voice note analysis using Wav2Vec2 + ASVspoof 2021
-- ✅ **Audio-Visual Sync Detection** - Lip movement vs audio alignment using FakeAVCeleb trained model
-- ✅ **Automatic Media Scanning** - Every shared audio/video is analyzed
-- ✅ **Credibility Scoring System** - Per-user trust scores based on detection history
-- ✅ **PostgreSQL Persistent Storage** - All messages, users, and detection logs stored reliably
-- ✅ **Real-time WebSocket Communication** - Instant message delivery and detection alerts
-- ✅ **Ensemble Voting** - Combines multiple models for higher accuracy
+The system stores:
+- **Users** - Username, email, credibility score (100 = trustworthy)
+- **Messages** - Text, audio, video messages between users
+- **Detection Logs** - Every detection result with confidence scores
+- **Flagged Content** - Messages identified as deepfakes
 
-### Detection Capabilities
-| Media Type | Detection Method | Output |
-|------------|-----------------|--------|
-| Audio Only | Wav2Vec2 + ASVspoof | Bonafide / Spoof (0-100%) |
-| Video | FakeAVCeleb (Audio-Visual) | Real / Fake / Mismatch |
-| Voice Note | Ensemble Model | Deepfake Confidence Score |
+When a deepfake is detected:
+- The message is flagged in database
+- Sender's credibility score decreases
+- Detection result stored for audit trail
 
----
+### Model Training Details
 
-## 🛠️ Tech Stack
+| Model | Trained On | Detects |
+|-------|-----------|---------|
+| Wav2Vec2 + ASVspoof | ASVspoof 2021 dataset | AI-generated audio |
+| FakeAVCeleb | FakeAVCeleb dataset | Mismatched lip movements |
+| Ensemble | Combined predictions | Final decision with confidence |
 
-### Backend Detection (Python - FastAPI)
-- fastapi, uvicorn - API framework
-- transformers (HuggingFace) - Wav2Vec2 model
-- torch, torchaudio - PyTorch backend
-- librosa - Audio processing
-- opencv-python - Video frame extraction
-- asyncpg - PostgreSQL async driver
-- python-multipart - File upload handling
-
-### Messaging Server (Node.js)
-- express, socket.io - Real-time communication
-- pg, sequelize - PostgreSQL ORM
-- axios, multer - API calls & file handling
-- bcrypt, jsonwebtoken - Authentication
-
-### Frontend (React.js)
-- react, socket.io-client - UI & real-time updates
-- react-player - Media playback
-- recorder.js - Audio/video recording
-- tailwindcss / Material-UI - Styling
-- axios - HTTP requests
-
-### Database (PostgreSQL)
-- PostgreSQL 15+ - Primary database
-- Sequelize ORM - Node.js ORM
-- asyncpg - Python async driver
-
----
-
-## 🗄️ Database Schema (PostgreSQL)
-
-```sql
--- Users Table
-CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    username VARCHAR(50) UNIQUE NOT NULL,
-    email VARCHAR(100) UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    credibility_score DECIMAL(5,2) DEFAULT 100.00,
-    total_messages INT DEFAULT 0,
-    flagged_messages INT DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_active TIMESTAMP
-);
-
--- Messages Table
-CREATE TABLE messages (
-    id SERIAL PRIMARY KEY,
-    sender_id INT REFERENCES users(id),
-    receiver_id INT REFERENCES users(id),
-    message_type VARCHAR(20) CHECK (message_type IN ('text', 'audio', 'video', 'image')),
-    content TEXT,
-    media_url TEXT,
-    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    is_deleted BOOLEAN DEFAULT FALSE
-);
-
--- Detection Logs Table
-CREATE TABLE detection_logs (
-    id SERIAL PRIMARY KEY,
-    message_id INT REFERENCES messages(id),
-    detection_type VARCHAR(20) CHECK (detection_type IN ('audio', 'video', 'audiovisual')),
-    is_deepfake BOOLEAN,
-    confidence_score DECIMAL(5,2),
-    model_used VARCHAR(50),
-    wav2vec2_score DECIMAL(5,2),
-    asvspoof_score DECIMAL(5,2),
-    fakeavceleb_score DECIMAL(5,2),
-    processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    processing_time_ms INT
-);
-
--- Conversations Table
-CREATE TABLE conversations (
-    id SERIAL PRIMARY KEY,
-    participant1_id INT REFERENCES users(id),
-    participant2_id INT REFERENCES users(id),
-    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_message_at TIMESTAMP
-);
-
--- Flagged Content Table
-CREATE TABLE flagged_content (
-    id SERIAL PRIMARY KEY,
-    message_id INT REFERENCES messages(id),
-    flagged_by INT REFERENCES users(id),
-    reason TEXT,
-    severity VARCHAR(20) CHECK (severity IN ('low', 'medium', 'high', 'critical')),
-    reviewed BOOLEAN DEFAULT FALSE,
-    flagged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Indexes
-CREATE INDEX idx_messages_timestamp ON messages(timestamp);
-CREATE INDEX idx_detection_logs_message ON detection_logs(message_id);
-CREATE INDEX idx_users_credibility ON users(credibility_score);
-
-
-deepfake-detection-system/
-│
-├── backend-python/                    # FastAPI Detection Service
-│   ├── main.py                        # FastAPI application
-│   ├── models/
-│   │   ├── audio_model.py             # Wav2Vec2 + ASVspoof loader
-│   │   ├── video_model.py             # FakeAVCeleb loader
-│   │   └── ensemble.py                # Ensemble voting
-│   ├── database/
-│   │   └── postgres_client.py         # PostgreSQL connection
-│   ├── utils/
-│   │   ├── audio_processor.py         # Audio preprocessing
-│   │   ├── video_processor.py         # Frame extraction
-│   │   └── feature_extractor.py       # Feature extraction
-│   ├── requirements.txt
-│   └── Dockerfile
-│
-├── backend-nodejs/                    # Node.js Chat Server
-│   ├── server.js                      # Main chat server
-│   ├── models/
-│   │   ├── User.js                    # User model (Sequelize)
-│   │   ├── Message.js                 # Message model
-│   │   └── DetectionLog.js            # Detection log model
-│   ├── controllers/
-│   │   ├── authController.js
-│   │   ├── messageController.js
-│   │   └── detectionController.js
-│   ├── middleware/
-│   │   ├── auth.js
-│   │   └── upload.js
-│   ├── routes/
-│   │   ├── auth.js
-│   │   ├── messages.js
-│   │   └── detection.js
-│   ├── config/
-│   │   ├── database.js                # PostgreSQL config
-│   │   └── socket.js                  # Socket.io config
-│   ├── package.json
-│   └── Dockerfile
-│
-├── frontend-react/                    # React.js Messenger
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── Chat/
-│   │   │   │   ├── ChatWindow.jsx
-│   │   │   │   ├── MessageBubble.jsx
-│   │   │   │   ├── AudioRecorder.jsx
-│   │   │   │   └── VideoRecorder.jsx
-│   │   │   ├── Detection/
-│   │   │   │   ├── DeepfakeAlert.jsx
-│   │   │   │   └── CredibilityScore.jsx
-│   │   │   └── Auth/
-│   │   │       ├── Login.jsx
-│   │   │       └── Register.jsx
-│   │   ├── services/
-│   │   │   ├── api.js                 # API calls
-│   │   │   └── socket.js              # Socket connection
-│   │   ├── App.js
-│   │   └── index.js
-│   ├── package.json
-│   └── Dockerfile
-│
-├── models/                            # Trained Model Files
-│   ├── wav2vec2_finetuned.pth
-│   ├── asvspoof_model.pth
-│   ├── fakeavceleb_model.pth
-│   └── ensemble_model.pkl
-│
-├── docker-compose.yml                 # Docker composition
-├── .env.example                       # Environment variables
-└── README.md                          # This file
+### Message Flow Example
